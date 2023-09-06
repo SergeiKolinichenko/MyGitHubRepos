@@ -16,4 +16,5 @@ dependencyResolutionManagement {
 
 rootProject.name = "My GitHub Repos"
 include(":app")
- 
+include(":data")
+include(":domain")
