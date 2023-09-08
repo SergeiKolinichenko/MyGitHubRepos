@@ -31,12 +31,17 @@ android {
   kotlinOptions {
     jvmTarget = "1.8"
   }
+  buildFeatures {
+    viewBinding = true
+  }
 }
 
 val retrofitVersion = "2.9.0"
-val daggerVersion = "2.43.2"
+val daggerVersion = "2.48"
 
 dependencies {
+  implementation(project(":data"))
+  implementation(project(":domain"))
 
   implementation("androidx.core:core-ktx:1.10.1")
   implementation("androidx.appcompat:appcompat:1.6.1")

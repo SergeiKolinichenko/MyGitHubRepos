@@ -1,3 +1,14 @@
 <resources>
   <string name="app_name">My GitHub Repos</string>
+
+  <string name="oauthUrl">https://github.com/login/oauth/authorize</string>
+  <string name="clientId">4b65325780700c2ccd2a</string>
+  <string name="clientSecret">6e97c9eeecf73c6fbf7d1f7bcdf7917e8504dd4d</string>
+  <string name="callbackUrl">mygithub://callback</string>
+  <string name="text_authenticate_button">Authenticate</string>
+  <string name="text_loadRepos_button">Load user repositories</string>
+  <string name="text_hint_comment_edit_text">Your comment</string>
+  <string name="text_post_comment_button">Send comment</string>
+
+  <!--  mygithub//callback  -->
 </resources>
