@@ -6,6 +6,7 @@ import android.os.Bundle
 import android.view.View
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModelProvider
 import info.sergeikolinichenko.mygithubrepos.R
@@ -30,6 +31,8 @@ class MainActivity : AppCompatActivity() {
     ViewModelProvider(this, viewModelFactory)[MainViewModel::class.java]
   }
 
+  var token: String? = null
+
   override fun onCreate(savedInstanceState: Bundle?) {
     component.inject(this)
     super.onCreate(savedInstanceState)
@@ -49,6 +52,13 @@ class MainActivity : AppCompatActivity() {
     val callbackUrl = getString(R.string.callbackUrl)
     if (url != null && url.toString().startsWith(callbackUrl)) {
       val code = url.getQueryParameter("code")
+
+      code?.let {
+        val clientId = getString(R.string.clientId)
+        val clientSecret = getString(R.string.clientSecret)
+        viewModel.getToken(clientID = clientId, clientSecret = clientSecret, code = code)
+      }
+
     }
   }
 
@@ -99,6 +109,23 @@ class MainActivity : AppCompatActivity() {
 
   private fun observeViewModel() {
 
+    viewModel.tokenId.observe(this) { token ->
+      if (token.isNotEmpty()) {
+        this.token = token
+        binding.loadReposButton.isEnabled = true
+        showToast("Authentication successful")
+      } else {
+        showToast("Authentication failed")
+      }
+    }
+
+    viewModel.errorId.observe(this) { message ->
+      showToast(message = message)
+    }
+  }
+
+  private fun showToast(message: String) {
+    Toast.makeText(this@MainActivity, message, Toast.LENGTH_SHORT).show()
   }
 
   fun onAuthenticate(view: View) {
