@@ -21,10 +21,6 @@ class MainActivity : AppCompatActivity() {
     ActivityMainBinding.inflate(layoutInflater)
   }
 
-  private val component by lazy {
-    (application as App).component
-  }
-
   @Inject
   lateinit var viewModelFactory: ViewModelsFactory
   private val viewModel by lazy {
@@ -32,6 +28,10 @@ class MainActivity : AppCompatActivity() {
   }
 
   var token: String? = null
+
+  private val component by lazy {
+    (application as App).component
+  }
 
   override fun onCreate(savedInstanceState: Bundle?) {
     component.inject(this)
@@ -109,7 +109,7 @@ class MainActivity : AppCompatActivity() {
 
   private fun observeViewModel() {
 
-    viewModel.tokenId.observe(this) { token ->
+    viewModel.tokenLd.observe(this) { token ->
       if (token.isNotEmpty()) {
         this.token = token
         binding.loadReposButton.isEnabled = true
@@ -119,7 +119,29 @@ class MainActivity : AppCompatActivity() {
       }
     }
 
-    viewModel.errorId.observe(this) { message ->
+    viewModel.reposLD.observe(this) { reposList ->
+      binding.repositoriesSpinner.visibility = View.VISIBLE
+
+      if ( !reposList.isNullOrEmpty() ) {
+        val spinnerAdapter = ArrayAdapter(
+          this@MainActivity,
+          android.R.layout.simple_spinner_dropdown_item,
+          reposList
+        )
+        binding.repositoriesSpinner.adapter = spinnerAdapter
+        binding.repositoriesSpinner.isEnabled = true
+      } else {
+        val spinnerAdapter = ArrayAdapter(
+          this@MainActivity,
+          android.R.layout.simple_spinner_dropdown_item,
+          arrayListOf("User has not repositories")
+        )
+        binding.repositoriesSpinner.adapter = spinnerAdapter
+        binding.repositoriesSpinner.isEnabled = false
+      }
+    }
+
+    viewModel.errorLd.observe(this) { message ->
       showToast(message = message)
     }
   }
@@ -134,13 +156,17 @@ class MainActivity : AppCompatActivity() {
     val clientId = getString(R.string.clientId)
     val callbackUrl = getString(R.string.callbackUrl)
 
-    val intent = Intent(Intent.ACTION_VIEW,
-      Uri.parse("$oauthUrl?client_id=$clientId&scope=repo&redirect_uri=$callbackUrl"))
+    val intent = Intent(
+      Intent.ACTION_VIEW,
+      Uri.parse("$oauthUrl?client_id=$clientId&scope=repo&redirect_uri=$callbackUrl")
+    )
     startActivity(intent)
   }
 
   fun onLoadRepos(view: View) {
-
+    token?.let {
+      viewModel.loadRepositories(it)
+    }
   }
 
   fun onPostComment(view: View) {

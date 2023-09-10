@@ -28,6 +28,7 @@ android {
   kotlinOptions {
     jvmTarget = "1.8"
   }
+
 }
 
 val retrofitVersion = "2.9.0"
@@ -48,4 +49,5 @@ dependencies {
   // Dagger 2
   implementation ("com.google.dagger:dagger:$daggerVersion")
   kapt ("com.google.dagger:dagger-compiler:$daggerVersion")
+  implementation ("com.squareup.okhttp3:logging-interceptor:4.4.0")
 }

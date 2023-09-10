@@ -1,9 +1,11 @@
 package info.sergeikolinichenko.mygithubrepos.network
 
+import info.sergeikolinichenko.mygithubrepos.models.GithubRepo
 import info.sergeikolinichenko.mygithubrepos.models.GithubToken
 import io.reactivex.Single
 import retrofit2.http.Field
 import retrofit2.http.FormUrlEncoded
+import retrofit2.http.GET
 import retrofit2.http.Headers
 import retrofit2.http.POST
 
@@ -18,4 +20,7 @@ interface ApiService {
     @Field("client_secret") clientSecret: String,
     @Field("code") code: String
   ): Single<GithubToken>
+
+  @GET("user/repos")
+  fun getAllRepos(): Single<List<GithubRepo>>
 }
