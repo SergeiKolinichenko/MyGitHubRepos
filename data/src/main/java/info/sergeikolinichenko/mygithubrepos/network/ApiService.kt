@@ -1,5 +1,6 @@
 package info.sergeikolinichenko.mygithubrepos.network
 
+import info.sergeikolinichenko.mygithubrepos.models.GithubPullRequest
 import info.sergeikolinichenko.mygithubrepos.models.GithubRepo
 import info.sergeikolinichenko.mygithubrepos.models.GithubToken
 import io.reactivex.Single
@@ -8,6 +9,7 @@ import retrofit2.http.FormUrlEncoded
 import retrofit2.http.GET
 import retrofit2.http.Headers
 import retrofit2.http.POST
+import retrofit2.http.Path
 
 /** Created by Sergei Kolinichenko on 08.09.2023 at 17:46 (GMT+3) **/
 
@@ -23,4 +25,10 @@ interface ApiService {
 
   @GET("user/repos")
   fun getAllRepos(): Single<List<GithubRepo>>
+
+  @GET("/repos/{owner}/{repo}/pulls")
+  fun getPullRequests(
+    @Path("owner") owner: String,
+    @Path("repo") repo: String
+  ): Single<List<GithubPullRequest>>
 }

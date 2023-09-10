@@ -11,6 +11,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModelProvider
 import info.sergeikolinichenko.mygithubrepos.R
 import info.sergeikolinichenko.mygithubrepos.databinding.ActivityMainBinding
+import info.sergeikolinichenko.mygithubrepos.models.GithubRepo
 import info.sergeikolinichenko.mygithubrepos.utils.App
 import info.sergeikolinichenko.mygithubrepos.utils.ViewModelsFactory
 import javax.inject.Inject
@@ -74,8 +75,23 @@ class MainActivity : AppCompatActivity() {
         override fun onNothingSelected(p0: AdapterView<*>?) {
         }
 
-        override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-          // Load PullRequests
+        override fun onItemSelected(
+          parent: AdapterView<*>?,
+          view: View?,
+          position: Int,
+          id: Long
+        ) {
+          if (parent?.selectedItem is GithubRepo) {
+            val currentRepo = parent.selectedItem as GithubRepo
+            val owner = currentRepo.owner.login
+            val repo = currentRepo.name
+            token?.let {
+              // Load PullRequests
+              viewModel.loadPullRequests(token = it, owner = owner, repo = repo)
+            }
+
+
+          }
         }
       }
   }
@@ -120,9 +136,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     viewModel.reposLD.observe(this) { reposList ->
-      binding.repositoriesSpinner.visibility = View.VISIBLE
 
       if ( !reposList.isNullOrEmpty() ) {
+        binding.repositoriesSpinner.visibility = View.VISIBLE
+
         val spinnerAdapter = ArrayAdapter(
           this@MainActivity,
           android.R.layout.simple_spinner_dropdown_item,
@@ -138,6 +155,29 @@ class MainActivity : AppCompatActivity() {
         )
         binding.repositoriesSpinner.adapter = spinnerAdapter
         binding.repositoriesSpinner.isEnabled = false
+      }
+    }
+
+    viewModel.pullRequestsLD.observe(this) { listPullRequests ->
+
+      if (!listPullRequests.isNullOrEmpty()) {
+        binding.prsSpinner.visibility = View.VISIBLE
+
+        val spinnerAdapter = ArrayAdapter(
+          this@MainActivity,
+          android.R.layout.simple_spinner_dropdown_item,
+          listPullRequests
+        )
+        binding.prsSpinner.adapter = spinnerAdapter
+        binding.prsSpinner.isEnabled = true
+      } else {
+        val spinnerAdapter = ArrayAdapter(
+          this@MainActivity,
+          android.R.layout.simple_spinner_dropdown_item,
+          arrayListOf("User has not pull requests")
+        )
+        binding.prsSpinner.adapter = spinnerAdapter
+        binding.prsSpinner.isEnabled = false
       }
     }
 

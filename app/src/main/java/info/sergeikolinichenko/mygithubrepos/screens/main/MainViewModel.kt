@@ -2,6 +2,7 @@ package info.sergeikolinichenko.mygithubrepos.screens.main
 
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import info.sergeikolinichenko.mygithubrepos.models.GithubPullRequest
 import info.sergeikolinichenko.mygithubrepos.models.GithubRepo
 import info.sergeikolinichenko.mygithubrepos.models.GithubToken
 import info.sergeikolinichenko.mygithubrepos.network.ApiFactory
@@ -20,7 +21,7 @@ class MainViewModel @Inject constructor() : ViewModel() {
   val tokenLd = MutableLiveData<String>()
   val errorLd = MutableLiveData<String>()
   val reposLD = MutableLiveData<List<GithubRepo>>()
-//  private val getUnauthorizedApi = ApiFactory.getUnauthorizedApi
+  val pullRequestsLD = MutableLiveData<List<GithubPullRequest>>()
 
   fun getToken(clientID: String, clientSecret: String, code: String) {
     compositeDisposable.add(
@@ -61,6 +62,26 @@ class MainViewModel @Inject constructor() : ViewModel() {
 
         })
     )
+  }
+
+  fun loadPullRequests(token: String, owner: String?, repo: String?) {
+    if (!owner.isNullOrEmpty() && !repo.isNullOrEmpty()) {
+      ApiFactory.getAuthorizedApi(token = token)
+        .getPullRequests(owner = owner, repo = repo)
+        .subscribeOn(Schedulers.io())
+        .observeOn(AndroidSchedulers.mainThread()).
+          subscribeWith(object : DisposableSingleObserver<List<GithubPullRequest>>(){
+            override fun onSuccess(t: List<GithubPullRequest>) {
+              pullRequestsLD.value = t
+            }
+
+            override fun onError(e: Throwable) {
+              e.printStackTrace()
+              errorLd.value = "Can not load pull requests"
+            }
+
+          })
+    }
   }
 
   override fun onCleared() {
