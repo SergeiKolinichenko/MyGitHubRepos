@@ -1,7 +1,9 @@
 package info.sergeikolinichenko.mygithubrepos.screens.main
 
+import android.util.Log
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import info.sergeikolinichenko.mygithubrepos.models.GithubComment
 import info.sergeikolinichenko.mygithubrepos.models.GithubPullRequest
 import info.sergeikolinichenko.mygithubrepos.models.GithubRepo
 import info.sergeikolinichenko.mygithubrepos.models.GithubToken
@@ -22,6 +24,7 @@ class MainViewModel @Inject constructor() : ViewModel() {
   val errorLd = MutableLiveData<String>()
   val reposLD = MutableLiveData<List<GithubRepo>>()
   val pullRequestsLD = MutableLiveData<List<GithubPullRequest>>()
+  val commentsLD = MutableLiveData<List<GithubComment>>()
 
   fun getToken(clientID: String, clientSecret: String, code: String) {
     compositeDisposable.add(
@@ -64,7 +67,11 @@ class MainViewModel @Inject constructor() : ViewModel() {
     )
   }
 
-  fun loadPullRequests(token: String, owner: String?, repo: String?) {
+  fun loadPullRequests(
+    token: String,
+    owner: String?,
+    repo: String?
+  ) {
     if (!owner.isNullOrEmpty() && !repo.isNullOrEmpty()) {
       ApiFactory.getAuthorizedApi(token = token)
         .getPullRequests(owner = owner, repo = repo)
@@ -81,6 +88,32 @@ class MainViewModel @Inject constructor() : ViewModel() {
             }
 
           })
+    }
+  }
+
+  fun loadCommentsPullRequest(
+    token: String,
+    owner: String?,
+    repo: String?,
+    pullNumber: String?
+  ) {
+    if (!owner.isNullOrEmpty() && !repo.isNullOrEmpty() && !pullNumber.isNullOrEmpty()) {
+      ApiFactory.getAuthorizedApi(token = token)
+        .getComments(owner = owner, repo = repo, pullNumber = pullNumber)
+        .subscribeOn(Schedulers.io())
+        .observeOn(AndroidSchedulers.mainThread())
+        .subscribeWith(object : DisposableSingleObserver<List<GithubComment>>() {
+          override fun onSuccess(t: List<GithubComment>) {
+            commentsLD.value = t
+          }
+
+          override fun onError(e: Throwable) {
+            e.printStackTrace()
+            Log.d("MyLog", "error $e")
+            errorLd.value = "Can not load comments on pull request"
+          }
+
+        })
     }
   }
 

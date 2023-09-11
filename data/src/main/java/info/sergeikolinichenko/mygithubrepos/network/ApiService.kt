@@ -1,5 +1,6 @@
 package info.sergeikolinichenko.mygithubrepos.network
 
+import info.sergeikolinichenko.mygithubrepos.models.GithubComment
 import info.sergeikolinichenko.mygithubrepos.models.GithubPullRequest
 import info.sergeikolinichenko.mygithubrepos.models.GithubRepo
 import info.sergeikolinichenko.mygithubrepos.models.GithubToken
@@ -31,4 +32,11 @@ interface ApiService {
     @Path("owner") owner: String,
     @Path("repo") repo: String
   ): Single<List<GithubPullRequest>>
+
+  @GET("/repos/{owner}/{repo}/issues/{issue_number}/comments")
+  fun getComments(
+    @Path("owner") owner: String,
+    @Path("repo") repo: String,
+    @Path("issue_number") pullNumber: String
+  ): Single<List<GithubComment>>
 }

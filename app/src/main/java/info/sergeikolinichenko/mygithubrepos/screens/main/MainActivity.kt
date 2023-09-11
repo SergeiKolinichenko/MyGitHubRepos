@@ -11,6 +11,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModelProvider
 import info.sergeikolinichenko.mygithubrepos.R
 import info.sergeikolinichenko.mygithubrepos.databinding.ActivityMainBinding
+import info.sergeikolinichenko.mygithubrepos.models.GithubPullRequest
 import info.sergeikolinichenko.mygithubrepos.models.GithubRepo
 import info.sergeikolinichenko.mygithubrepos.utils.App
 import info.sergeikolinichenko.mygithubrepos.utils.ViewModelsFactory
@@ -108,8 +109,27 @@ class MainActivity : AppCompatActivity() {
         override fun onNothingSelected(p0: AdapterView<*>?) {
         }
 
-        override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-          // Load comments
+        override fun onItemSelected(
+          parent: AdapterView<*>?,
+          view: View?,
+          position: Int,
+          id: Long
+        ) {
+          if (parent?.selectedItem is GithubPullRequest) {
+            val currentPR = parent.selectedItem as GithubPullRequest
+            val owner = currentPR.user?.login
+            val repo = binding.repositoriesSpinner.selectedItem as GithubRepo
+            val number = currentPR.number
+            // Load comments
+            token?.let {
+              viewModel.loadCommentsPullRequest(
+                token = it,
+                owner = owner,
+                repo = repo.name,
+                number
+              )
+            }
+          }
         }
       }
   }
@@ -137,7 +157,7 @@ class MainActivity : AppCompatActivity() {
 
     viewModel.reposLD.observe(this) { reposList ->
 
-      if ( !reposList.isNullOrEmpty() ) {
+      if (!reposList.isNullOrEmpty()) {
         binding.repositoriesSpinner.visibility = View.VISIBLE
 
         val spinnerAdapter = ArrayAdapter(
@@ -178,6 +198,30 @@ class MainActivity : AppCompatActivity() {
         )
         binding.prsSpinner.adapter = spinnerAdapter
         binding.prsSpinner.isEnabled = false
+      }
+    }
+
+    viewModel.commentsLD.observe(this) { comments ->
+      if (!comments.isNullOrEmpty()) {
+        binding.commentsSpinner.visibility = View.VISIBLE
+        val spinnerAdapter = ArrayAdapter(
+          this@MainActivity,
+          android.R.layout.simple_spinner_dropdown_item,
+          comments
+        )
+        binding.commentsSpinner.adapter = spinnerAdapter
+        binding.commentsSpinner.isEnabled = true
+        binding.commentEditText.isEnabled = true
+        binding.postCommentButton.isEnabled = true
+
+      } else {
+        val spinnerAdapter = ArrayAdapter(
+          this@MainActivity,
+          android.R.layout.simple_spinner_dropdown_item,
+          arrayListOf("User has not comments")
+        )
+        binding.commentsSpinner.adapter = spinnerAdapter
+        binding.commentsSpinner.isEnabled = false
       }
     }
 
