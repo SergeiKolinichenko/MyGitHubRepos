@@ -1,6 +1,5 @@
 package info.sergeikolinichenko.mygithubrepos.screens.main
 
-import android.util.Log
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import info.sergeikolinichenko.mygithubrepos.models.GithubComment
@@ -12,6 +11,7 @@ import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.CompositeDisposable
 import io.reactivex.observers.DisposableSingleObserver
 import io.reactivex.schedulers.Schedulers
+import okhttp3.ResponseBody
 import javax.inject.Inject
 
 /** Created by Sergei Kolinichenko on 06.09.2023 at 20:21 (GMT+3) **/
@@ -25,6 +25,7 @@ class MainViewModel @Inject constructor() : ViewModel() {
   val reposLD = MutableLiveData<List<GithubRepo>>()
   val pullRequestsLD = MutableLiveData<List<GithubPullRequest>>()
   val commentsLD = MutableLiveData<List<GithubComment>>()
+  val postCommentsLD = MutableLiveData<Unit>()
 
   fun getToken(clientID: String, clientSecret: String, code: String) {
     compositeDisposable.add(
@@ -72,22 +73,23 @@ class MainViewModel @Inject constructor() : ViewModel() {
     owner: String?,
     repo: String?
   ) {
+
     if (!owner.isNullOrEmpty() && !repo.isNullOrEmpty()) {
       ApiFactory.getAuthorizedApi(token = token)
         .getPullRequests(owner = owner, repo = repo)
         .subscribeOn(Schedulers.io())
-        .observeOn(AndroidSchedulers.mainThread()).
-          subscribeWith(object : DisposableSingleObserver<List<GithubPullRequest>>(){
-            override fun onSuccess(t: List<GithubPullRequest>) {
-              pullRequestsLD.value = t
-            }
+        .observeOn(AndroidSchedulers.mainThread())
+        .subscribeWith(object : DisposableSingleObserver<List<GithubPullRequest>>() {
+          override fun onSuccess(t: List<GithubPullRequest>) {
+            pullRequestsLD.value = t
+          }
 
-            override fun onError(e: Throwable) {
-              e.printStackTrace()
-              errorLd.value = "Can not load pull requests"
-            }
+          override fun onError(e: Throwable) {
+            e.printStackTrace()
+            errorLd.value = "Cannot load pull requests"
+          }
 
-          })
+        })
     }
   }
 
@@ -97,6 +99,7 @@ class MainViewModel @Inject constructor() : ViewModel() {
     repo: String?,
     pullNumber: String?
   ) {
+
     if (!owner.isNullOrEmpty() && !repo.isNullOrEmpty() && !pullNumber.isNullOrEmpty()) {
       ApiFactory.getAuthorizedApi(token = token)
         .getComments(owner = owner, repo = repo, pullNumber = pullNumber)
@@ -109,11 +112,45 @@ class MainViewModel @Inject constructor() : ViewModel() {
 
           override fun onError(e: Throwable) {
             e.printStackTrace()
-            Log.d("MyLog", "error $e")
-            errorLd.value = "Can not load comments on pull request"
+            errorLd.value = "Cannot load comments on pull request"
           }
 
         })
+    }
+  }
+
+  fun onPostComment(
+    token: String,
+    repo: GithubRepo,
+    pullNumber: String?,
+    content: GithubComment
+  ) {
+    if (
+      !repo.name.isNullOrEmpty() &&
+      repo.owner.login.isNotEmpty() &&
+      !pullNumber.isNullOrEmpty()
+    ) {
+      compositeDisposable.add(
+        ApiFactory.getAuthorizedApi(token).postComment(
+          owner = repo.owner.login,
+          repo = repo.name!!,
+          pullNumber = pullNumber,
+          comment = content
+        )
+          .subscribeOn(Schedulers.io())
+          .observeOn(AndroidSchedulers.mainThread())
+          .subscribeWith(object : DisposableSingleObserver<ResponseBody>(){
+            override fun onSuccess(t: ResponseBody) {
+              postCommentsLD.value = Unit
+            }
+
+            override fun onError(e: Throwable) {
+              e.printStackTrace()
+              errorLd.value = "Cannot create comment"
+            }
+
+          })
+      )
     }
   }
 

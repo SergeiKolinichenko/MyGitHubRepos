@@ -11,6 +11,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModelProvider
 import info.sergeikolinichenko.mygithubrepos.R
 import info.sergeikolinichenko.mygithubrepos.databinding.ActivityMainBinding
+import info.sergeikolinichenko.mygithubrepos.models.GithubComment
 import info.sergeikolinichenko.mygithubrepos.models.GithubPullRequest
 import info.sergeikolinichenko.mygithubrepos.models.GithubRepo
 import info.sergeikolinichenko.mygithubrepos.utils.App
@@ -225,6 +226,25 @@ class MainActivity : AppCompatActivity() {
       }
     }
 
+    viewModel.postCommentsLD.observe(this) {
+      binding.commentEditText.setText("")
+      showToast("Comment created")
+
+      val currentPR = binding.prsSpinner.selectedItem as GithubPullRequest
+      val owner = currentPR.user?.login
+      val repo = binding.repositoriesSpinner.selectedItem as GithubRepo
+      val number = currentPR.number
+      // Load comments
+      token?.let {
+        viewModel.loadCommentsPullRequest(
+          token = it,
+          owner = owner,
+          repo = repo.name,
+          number
+        )
+      }
+    }
+
     viewModel.errorLd.observe(this) { message ->
       showToast(message = message)
     }
@@ -234,7 +254,7 @@ class MainActivity : AppCompatActivity() {
     Toast.makeText(this@MainActivity, message, Toast.LENGTH_SHORT).show()
   }
 
-  fun onAuthenticate(view: View) {
+  fun onAuthenticate() {
 
     val oauthUrl = getString(R.string.oauthUrl)
     val clientId = getString(R.string.clientId)
@@ -247,14 +267,27 @@ class MainActivity : AppCompatActivity() {
     startActivity(intent)
   }
 
-  fun onLoadRepos(view: View) {
+  fun onLoadRepos() {
     token?.let {
       viewModel.loadRepositories(it)
     }
   }
 
-  fun onPostComment(view: View) {
-
+  fun onPostComment() {
+    val comment = binding.commentEditText.text.toString()
+    if (comment.isNotEmpty()) {
+      val currentRepo = binding.repositoriesSpinner.selectedItem as GithubRepo
+      val currentPullRequest = binding.prsSpinner.selectedItem as GithubPullRequest
+      val content = GithubComment(body = comment, id = null)
+      token?.let {
+        viewModel.onPostComment(
+          token = it,
+          repo = currentRepo,
+          pullNumber = currentPullRequest.number,
+          content = content
+        )
+      }
+    } else showToast("Pleas enter a comment")
   }
 
 }
