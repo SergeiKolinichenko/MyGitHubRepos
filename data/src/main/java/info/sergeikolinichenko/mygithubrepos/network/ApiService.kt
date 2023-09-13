@@ -1,9 +1,9 @@
 package info.sergeikolinichenko.mygithubrepos.network
 
-import info.sergeikolinichenko.mygithubrepos.models.GithubComment
-import info.sergeikolinichenko.mygithubrepos.models.GithubPullRequest
-import info.sergeikolinichenko.mygithubrepos.models.GithubRepo
-import info.sergeikolinichenko.mygithubrepos.models.GithubToken
+import info.sergeikolinichenko.mygithubrepos.models.GithubCommentDto
+import info.sergeikolinichenko.mygithubrepos.models.GithubPullRequestDto
+import info.sergeikolinichenko.mygithubrepos.models.GithubRepoDto
+import info.sergeikolinichenko.mygithubrepos.models.GithubTokenDto
 import io.reactivex.Single
 import okhttp3.ResponseBody
 import retrofit2.http.Body
@@ -24,29 +24,29 @@ interface ApiService {
     @Field("client_id") clientId: String,
     @Field("client_secret") clientSecret: String,
     @Field("code") code: String
-  ): GithubToken //Single<GithubToken>
+  ): GithubTokenDto //Single<GithubToken>
 
   @GET("user/repos")
-  fun getAllRepos(): Single<List<GithubRepo>>
+  suspend fun getAllRepos(): List<GithubRepoDto> //Single<List<GithubRepoDto>>
 
   @GET("/repos/{owner}/{repo}/pulls")
   fun getPullRequests(
     @Path("owner") owner: String,
     @Path("repo") repo: String
-  ): Single<List<GithubPullRequest>>
+  ): Single<List<GithubPullRequestDto>>
 
   @GET("/repos/{owner}/{repo}/issues/{issue_number}/comments")
   fun getComments(
     @Path("owner") owner: String,
     @Path("repo") repo: String,
     @Path("issue_number") pullNumber: String
-  ): Single<List<GithubComment>>
+  ): Single<List<GithubCommentDto>>
 
   @POST("/repos/{owner}/{repo}/issues/{issue_number}/comments")
   fun postComment(
     @Path("owner") owner: String,
     @Path("repo") repo: String,
     @Path("issue_number") pullNumber: String,
-    @Body comment: GithubComment
+    @Body comment: GithubCommentDto
   ): Single<ResponseBody>
 }

@@ -9,12 +9,14 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import info.sergeikolinichenko.mygithubrepos.databinding.ActivityMainBinding
-import info.sergeikolinichenko.mygithubrepos.models.GithubComment
-import info.sergeikolinichenko.mygithubrepos.models.GithubPullRequest
+import info.sergeikolinichenko.mygithubrepos.models.GithubCommentDto
+import info.sergeikolinichenko.mygithubrepos.models.GithubPullRequestDto
 import info.sergeikolinichenko.mygithubrepos.models.GithubRepo
+import info.sergeikolinichenko.mygithubrepos.models.GithubRepoDto
 import info.sergeikolinichenko.mygithubrepos.utils.App
 import info.sergeikolinichenko.mygithubrepos.utils.EventMainActivity
 import info.sergeikolinichenko.mygithubrepos.utils.StateMainActivity.GetAuthoriseGithub
+import info.sergeikolinichenko.mygithubrepos.utils.StateMainActivity.GotListRepos
 import info.sergeikolinichenko.mygithubrepos.utils.StateMainActivity.GotToken
 import info.sergeikolinichenko.mygithubrepos.utils.StateMainActivity.Init
 import info.sergeikolinichenko.mygithubrepos.utils.StateMainActivity.ShowToast
@@ -67,8 +69,8 @@ class MainActivity : AppCompatActivity() {
           position: Int,
           id: Long
         ) {
-          if (parent?.selectedItem is GithubRepo) {
-            val currentRepo = parent.selectedItem as GithubRepo
+          if (parent?.selectedItem is GithubRepoDto) {
+            val currentRepo = parent.selectedItem as GithubRepoDto
             val owner = currentRepo.owner.login
             val repo = currentRepo.name
             token?.let {
@@ -97,10 +99,10 @@ class MainActivity : AppCompatActivity() {
           position: Int,
           id: Long
         ) {
-          if (parent?.selectedItem is GithubPullRequest) {
-            val currentPR = parent.selectedItem as GithubPullRequest
+          if (parent?.selectedItem is GithubPullRequestDto) {
+            val currentPR = parent.selectedItem as GithubPullRequestDto
             val owner = currentPR.user?.login
-            val repo = binding.repositoriesSpinner.selectedItem as GithubRepo
+            val repo = binding.repositoriesSpinner.selectedItem as GithubRepoDto
             val number = currentPR.number
             // Load comments
             token?.let {
@@ -211,9 +213,9 @@ class MainActivity : AppCompatActivity() {
       binding.commentEditText.setText("")
       showToast("Comment created")
 
-      val currentPR = binding.prsSpinner.selectedItem as GithubPullRequest
+      val currentPR = binding.prsSpinner.selectedItem as GithubPullRequestDto
       val owner = currentPR.user?.login
-      val repo = binding.repositoriesSpinner.selectedItem as GithubRepo
+      val repo = binding.repositoriesSpinner.selectedItem as GithubRepoDto
       val number = currentPR.number
       // Load comments
       token?.let {
@@ -247,17 +249,42 @@ class MainActivity : AppCompatActivity() {
           is GetAuthoriseGithub -> { startActivity(state.intent) }
           is GotToken -> { gotToken(result = state.result) }
           is ShowToast -> {showToast(message = state.message)}
+          is GotListRepos -> {gotListRepos(list = state.list)}
         }
       }
+    }
+  }
+
+  private fun gotListRepos(list: List<GithubRepo>) {
+    if (list.isNotEmpty()) {
+
+      val spinnerAdapter = ArrayAdapter(
+        this@MainActivity,
+        android.R.layout.simple_spinner_dropdown_item,
+        list
+      )
+      binding.repositoriesSpinner.adapter = spinnerAdapter
+      binding.repositoriesSpinner.isEnabled = true
+    } else {
+      val spinnerAdapter = ArrayAdapter(
+        this@MainActivity,
+        android.R.layout.simple_spinner_dropdown_item,
+        arrayListOf("User has not repositories")
+      )
+      binding.repositoriesSpinner.adapter = spinnerAdapter
+      binding.repositoriesSpinner.isEnabled = false
     }
   }
 
   private suspend fun gotToken(result: Boolean) {
     if (result) {
       binding.loadReposButton.isEnabled = true
+      viewModel.event(EventMainActivity.ShowToast(
+        message = "Authentication successful"
+      ))
     } else {
       viewModel.event(EventMainActivity.ShowToast(
-        message = "Don't load GitHub token"
+        message = "Authentication failed"
       ))
     }
   }
@@ -281,17 +308,17 @@ class MainActivity : AppCompatActivity() {
   }
 
   fun onLoadRepos(view: View) {
-    token?.let {
-      viewModel.loadRepositories(it)
+    lifecycleScope.launch {
+      viewModel.event(EventMainActivity.GetListRepos)
     }
   }
 
   fun onPostComment(view: View) {
     val comment = binding.commentEditText.text.toString()
     if (comment.isNotEmpty()) {
-      val currentRepo = binding.repositoriesSpinner.selectedItem as GithubRepo
-      val currentPullRequest = binding.prsSpinner.selectedItem as GithubPullRequest
-      val content = GithubComment(body = comment, id = null)
+      val currentRepo = binding.repositoriesSpinner.selectedItem as GithubRepoDto
+      val currentPullRequest = binding.prsSpinner.selectedItem as GithubPullRequestDto
+      val content = GithubCommentDto(body = comment, id = null)
       token?.let {
         viewModel.onPostComment(
           token = it,

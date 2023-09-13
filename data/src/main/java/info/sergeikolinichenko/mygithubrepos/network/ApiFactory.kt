@@ -3,7 +3,6 @@ package info.sergeikolinichenko.mygithubrepos.network
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
-import retrofit2.adapter.rxjava2.RxJava2CallAdapterFactory
 import retrofit2.converter.gson.GsonConverterFactory
 
 /** Created by Sergei Kolinichenko on 08.09.2023 at 18:53 (GMT+3) **/
@@ -36,10 +35,10 @@ object ApiFactory {
       chain.proceed(newRequest)
     }
     return  Retrofit.Builder()
+      .addConverterFactory(GsonConverterFactory.create())
       .baseUrl(BASE_URL)
       .client(okHttpClient.build())
-      .addConverterFactory(GsonConverterFactory.create())
-      .addCallAdapterFactory(RxJava2CallAdapterFactory.create())
+//      .addCallAdapterFactory(RxJava2CallAdapterFactory.create())
       .build()
       .create(ApiService::class.java)
   }

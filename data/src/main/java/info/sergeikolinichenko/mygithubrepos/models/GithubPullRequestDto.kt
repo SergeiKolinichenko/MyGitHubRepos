@@ -4,11 +4,11 @@ import com.google.gson.annotations.SerializedName
 
 /** Created by Sergei Kolinichenko on 10.09.2023 at 19:38 (GMT+3) **/
 
-data class GithubPullRequest(
+data class GithubPullRequestDto(
   val id: String?,
   val title: String?,
   val number: String?,
-  val user: GithubUser?,
+  val user: GithubUserDto?,
 
   @SerializedName("comments_url")
   val commentsUrl: String?

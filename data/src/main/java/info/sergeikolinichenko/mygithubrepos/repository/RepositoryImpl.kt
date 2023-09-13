@@ -3,14 +3,20 @@ package info.sergeikolinichenko.mygithubrepos.repository
 import android.content.Intent
 import android.content.SharedPreferences
 import android.net.Uri
+import info.sergeikolinichenko.mygithubrepos.models.GithubRepo
+import info.sergeikolinichenko.mygithubrepos.models.GithubRepoDto
 import info.sergeikolinichenko.mygithubrepos.network.ApiFactory
+import info.sergeikolinichenko.mygithubrepos.utils.Mapper
 import javax.inject.Inject
 
 /** Created by Sergei Kolinichenko on 12.09.2023 at 17:22 (GMT+3) **/
 
 class RepositoryImpl @Inject constructor(
-  private val preferences: SharedPreferences
+  private val preferences: SharedPreferences,
+  private val mapper: Mapper
 )  : Repository {
+
+
   @Suppress("UNCHECKED_CAST")
   override fun <T> onAuthenticate() = Intent(
       Intent.ACTION_VIEW,
@@ -37,6 +43,15 @@ class RepositoryImpl @Inject constructor(
 
   override fun clearToken() {
     preferences.edit().clear().apply()
+  }
+
+  override suspend fun getGithubRepos(): List<GithubRepo> {
+    val token = preferences.getString(KEY_TOKEN, "")
+    val list = mutableListOf<GithubRepoDto>()
+    if (!token.isNullOrEmpty()) {
+      list.addAll(ApiFactory.getAuthorizedApi(token = token).getAllRepos())
+    }
+    return list.map { mapper.mapDtoToRepo(it) }
   }
 
   companion object {

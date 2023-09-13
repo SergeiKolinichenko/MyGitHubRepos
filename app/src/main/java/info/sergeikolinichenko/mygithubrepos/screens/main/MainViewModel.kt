@@ -1,14 +1,16 @@
 package info.sergeikolinichenko.mygithubrepos.screens.main
 
 import android.content.Intent
+import android.util.Log
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
-import info.sergeikolinichenko.mygithubrepos.models.GithubComment
-import info.sergeikolinichenko.mygithubrepos.models.GithubPullRequest
-import info.sergeikolinichenko.mygithubrepos.models.GithubRepo
+import info.sergeikolinichenko.mygithubrepos.models.GithubCommentDto
+import info.sergeikolinichenko.mygithubrepos.models.GithubPullRequestDto
+import info.sergeikolinichenko.mygithubrepos.models.GithubRepoDto
 import info.sergeikolinichenko.mygithubrepos.network.ApiFactory
 import info.sergeikolinichenko.mygithubrepos.usecases.ClearTokenUseCase
 import info.sergeikolinichenko.mygithubrepos.usecases.GetAuthoriseUseCase
+import info.sergeikolinichenko.mygithubrepos.usecases.GetReposUseCase
 import info.sergeikolinichenko.mygithubrepos.usecases.GetTokenUseCase
 import info.sergeikolinichenko.mygithubrepos.utils.EventMainActivity
 import info.sergeikolinichenko.mygithubrepos.utils.StateMainActivity
@@ -26,7 +28,8 @@ import javax.inject.Inject
 class MainViewModel @Inject constructor(
   private val getAuthoriseUseCase: GetAuthoriseUseCase,
   private val getTokenUseCase: GetTokenUseCase,
-  private val clearTokenUseCase: ClearTokenUseCase
+  private val clearTokenUseCase: ClearTokenUseCase,
+  private val getReposUseCase: GetReposUseCase
 ) : ViewModel() {
 
   private val _state = MutableStateFlow<StateMainActivity>(StateMainActivity.Init)
@@ -36,6 +39,7 @@ class MainViewModel @Inject constructor(
     when (event) {
       EventMainActivity.Init -> {}
       EventMainActivity.GetAuthoriseGithub -> getAuthoriseGithub()
+      EventMainActivity.GetListRepos -> loadRepositories()
       is EventMainActivity.GetToken -> { getGithubToken(event.uri) }
       is EventMainActivity.ShowToast -> { _state.emit(StateMainActivity.ShowToast(event.message)) }
     }
@@ -55,28 +59,33 @@ class MainViewModel @Inject constructor(
 
   val tokenLd = MutableLiveData<String>()
   val errorLd = MutableLiveData<String>()
-  val reposLD = MutableLiveData<List<GithubRepo>>()
-  val pullRequestsLD = MutableLiveData<List<GithubPullRequest>>()
-  val commentsLD = MutableLiveData<List<GithubComment>>()
+  val reposLD = MutableLiveData<List<GithubRepoDto>>()
+  val pullRequestsLD = MutableLiveData<List<GithubPullRequestDto>>()
+  val commentsLD = MutableLiveData<List<GithubCommentDto>>()
   val postCommentsLD = MutableLiveData<Unit>()
 
-  fun loadRepositories(token: String) {
-    compositeDisposable.add(
-      ApiFactory.getAuthorizedApi(token = token).getAllRepos()
-        .subscribeOn(Schedulers.io())
-        .observeOn(AndroidSchedulers.mainThread())
-        .subscribeWith(object : DisposableSingleObserver<List<GithubRepo>>() {
-          override fun onSuccess(t: List<GithubRepo>) {
-            reposLD.value = t
-          }
+  private suspend fun loadRepositories() {
 
-          override fun onError(e: Throwable) {
-            e.printStackTrace()
-            errorLd.value = "Cannot load repositories"
-          }
+    val list = getReposUseCase.invoke()
+    Log.d("MyLog", "list $list")
+    _state.emit(StateMainActivity.GotListRepos(list = list))
 
-        })
-    )
+//    compositeDisposable.add(
+//      ApiFactory.getAuthorizedApi(token = token).getAllRepos()
+//        .subscribeOn(Schedulers.io())
+//        .observeOn(AndroidSchedulers.mainThread())
+//        .subscribeWith(object : DisposableSingleObserver<List<GithubRepoDto>>() {
+//          override fun onSuccess(t: List<GithubRepoDto>) {
+//            reposLD.value = t
+//          }
+//
+//          override fun onError(e: Throwable) {
+//            e.printStackTrace()
+//            errorLd.value = "Cannot load repositories"
+//          }
+//
+//        })
+//    )
   }
 
   fun loadPullRequests(
@@ -90,8 +99,8 @@ class MainViewModel @Inject constructor(
         .getPullRequests(owner = owner, repo = repo)
         .subscribeOn(Schedulers.io())
         .observeOn(AndroidSchedulers.mainThread())
-        .subscribeWith(object : DisposableSingleObserver<List<GithubPullRequest>>() {
-          override fun onSuccess(t: List<GithubPullRequest>) {
+        .subscribeWith(object : DisposableSingleObserver<List<GithubPullRequestDto>>() {
+          override fun onSuccess(t: List<GithubPullRequestDto>) {
             pullRequestsLD.value = t
           }
 
@@ -116,8 +125,8 @@ class MainViewModel @Inject constructor(
         .getComments(owner = owner, repo = repo, pullNumber = pullNumber)
         .subscribeOn(Schedulers.io())
         .observeOn(AndroidSchedulers.mainThread())
-        .subscribeWith(object : DisposableSingleObserver<List<GithubComment>>() {
-          override fun onSuccess(t: List<GithubComment>) {
+        .subscribeWith(object : DisposableSingleObserver<List<GithubCommentDto>>() {
+          override fun onSuccess(t: List<GithubCommentDto>) {
             commentsLD.value = t
           }
 
@@ -132,9 +141,9 @@ class MainViewModel @Inject constructor(
 
   fun onPostComment(
     token: String,
-    repo: GithubRepo,
+    repo: GithubRepoDto,
     pullNumber: String?,
-    content: GithubComment
+    content: GithubCommentDto
   ) {
     if (
       !repo.name.isNullOrEmpty() &&

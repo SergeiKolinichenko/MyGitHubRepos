@@ -5,6 +5,7 @@ package info.sergeikolinichenko.mygithubrepos.utils
 sealed class EventMainActivity {
   data object Init: EventMainActivity()
   data object GetAuthoriseGithub: EventMainActivity()
+  data object GetListRepos: EventMainActivity()
   class GetToken(val uri: String): EventMainActivity()
   class ShowToast(val message: String): EventMainActivity()
 }
