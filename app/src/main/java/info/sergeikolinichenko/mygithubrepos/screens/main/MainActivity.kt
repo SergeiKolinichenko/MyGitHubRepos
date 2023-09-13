@@ -10,12 +10,13 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import info.sergeikolinichenko.mygithubrepos.databinding.ActivityMainBinding
 import info.sergeikolinichenko.mygithubrepos.models.GithubCommentDto
-import info.sergeikolinichenko.mygithubrepos.models.GithubPullRequestDto
+import info.sergeikolinichenko.mygithubrepos.models.GithubPullRequest
 import info.sergeikolinichenko.mygithubrepos.models.GithubRepo
 import info.sergeikolinichenko.mygithubrepos.models.GithubRepoDto
 import info.sergeikolinichenko.mygithubrepos.utils.App
 import info.sergeikolinichenko.mygithubrepos.utils.EventMainActivity
 import info.sergeikolinichenko.mygithubrepos.utils.StateMainActivity.GetAuthoriseGithub
+import info.sergeikolinichenko.mygithubrepos.utils.StateMainActivity.GotListPullRequests
 import info.sergeikolinichenko.mygithubrepos.utils.StateMainActivity.GotListRepos
 import info.sergeikolinichenko.mygithubrepos.utils.StateMainActivity.GotToken
 import info.sergeikolinichenko.mygithubrepos.utils.StateMainActivity.Init
@@ -69,13 +70,18 @@ class MainActivity : AppCompatActivity() {
           position: Int,
           id: Long
         ) {
-          if (parent?.selectedItem is GithubRepoDto) {
-            val currentRepo = parent.selectedItem as GithubRepoDto
+          if (parent?.selectedItem is GithubRepo) {
+            val currentRepo = parent.selectedItem as GithubRepo
             val owner = currentRepo.owner.login
             val repo = currentRepo.name
-            token?.let {
-              // Load PullRequests
-              viewModel.loadPullRequests(token = it, owner = owner, repo = repo)
+            // Load PullRequests
+            lifecycleScope.launch {
+              viewModel.event(
+                EventMainActivity.GetPullRequests(
+                  owner = owner,
+                  repo = repo
+                )
+              )
             }
           }
         }
@@ -93,16 +99,17 @@ class MainActivity : AppCompatActivity() {
       object : AdapterView.OnItemSelectedListener {
         override fun onNothingSelected(p0: AdapterView<*>?) {
         }
+
         override fun onItemSelected(
           parent: AdapterView<*>?,
           view: View?,
           position: Int,
           id: Long
         ) {
-          if (parent?.selectedItem is GithubPullRequestDto) {
-            val currentPR = parent.selectedItem as GithubPullRequestDto
+          if (parent?.selectedItem is GithubPullRequest) {
+            val currentPR = parent.selectedItem as GithubPullRequest
             val owner = currentPR.user?.login
-            val repo = binding.repositoriesSpinner.selectedItem as GithubRepoDto
+            val repo = binding.repositoriesSpinner.selectedItem as GithubRepo
             val number = currentPR.number
             // Load comments
             token?.let {
@@ -139,52 +146,6 @@ class MainActivity : AppCompatActivity() {
       }
     }
 
-    viewModel.reposLD.observe(this) { reposList ->
-
-      if (!reposList.isNullOrEmpty()) {
-        binding.repositoriesSpinner.visibility = View.VISIBLE
-
-        val spinnerAdapter = ArrayAdapter(
-          this@MainActivity,
-          android.R.layout.simple_spinner_dropdown_item,
-          reposList
-        )
-        binding.repositoriesSpinner.adapter = spinnerAdapter
-        binding.repositoriesSpinner.isEnabled = true
-      } else {
-        val spinnerAdapter = ArrayAdapter(
-          this@MainActivity,
-          android.R.layout.simple_spinner_dropdown_item,
-          arrayListOf("User has not repositories")
-        )
-        binding.repositoriesSpinner.adapter = spinnerAdapter
-        binding.repositoriesSpinner.isEnabled = false
-      }
-    }
-
-    viewModel.pullRequestsLD.observe(this) { listPullRequests ->
-
-      if (!listPullRequests.isNullOrEmpty()) {
-        binding.prsSpinner.visibility = View.VISIBLE
-
-        val spinnerAdapter = ArrayAdapter(
-          this@MainActivity,
-          android.R.layout.simple_spinner_dropdown_item,
-          listPullRequests
-        )
-        binding.prsSpinner.adapter = spinnerAdapter
-        binding.prsSpinner.isEnabled = true
-      } else {
-        val spinnerAdapter = ArrayAdapter(
-          this@MainActivity,
-          android.R.layout.simple_spinner_dropdown_item,
-          arrayListOf("User has not pull requests")
-        )
-        binding.prsSpinner.adapter = spinnerAdapter
-        binding.prsSpinner.isEnabled = false
-      }
-    }
-
     viewModel.commentsLD.observe(this) { comments ->
       if (!comments.isNullOrEmpty()) {
         binding.commentsSpinner.visibility = View.VISIBLE
@@ -213,9 +174,9 @@ class MainActivity : AppCompatActivity() {
       binding.commentEditText.setText("")
       showToast("Comment created")
 
-      val currentPR = binding.prsSpinner.selectedItem as GithubPullRequestDto
+      val currentPR = binding.prsSpinner.selectedItem as GithubPullRequest
       val owner = currentPR.user?.login
-      val repo = binding.repositoriesSpinner.selectedItem as GithubRepoDto
+      val repo = binding.repositoriesSpinner.selectedItem as GithubRepo
       val number = currentPR.number
       // Load comments
       token?.let {
@@ -246,10 +207,26 @@ class MainActivity : AppCompatActivity() {
             initialPrsSpinner()
             initialCommentsSpinner()
           }
-          is GetAuthoriseGithub -> { startActivity(state.intent) }
-          is GotToken -> { gotToken(result = state.result) }
-          is ShowToast -> {showToast(message = state.message)}
-          is GotListRepos -> {gotListRepos(list = state.list)}
+
+          is GetAuthoriseGithub -> {
+            startActivity(state.intent)
+          }
+
+          is GotToken -> {
+            gotToken(result = state.result)
+          }
+
+          is ShowToast -> {
+            showToast(message = state.message)
+          }
+
+          is GotListRepos -> {
+            gotListRepos(list = state.list)
+          }
+
+          is GotListPullRequests -> {
+            gotListPullRequests(list = state.list)
+          }
         }
       }
     }
@@ -276,16 +253,41 @@ class MainActivity : AppCompatActivity() {
     }
   }
 
+  private fun gotListPullRequests(list: List<GithubPullRequest>) {
+    if (list.isNotEmpty()) {
+
+      val spinnerAdapter = ArrayAdapter(
+        this@MainActivity,
+        android.R.layout.simple_spinner_dropdown_item,
+        list
+      )
+      binding.prsSpinner.adapter = spinnerAdapter
+      binding.prsSpinner.isEnabled = true
+    } else {
+      val spinnerAdapter = ArrayAdapter(
+        this@MainActivity,
+        android.R.layout.simple_spinner_dropdown_item,
+        arrayListOf("User has not pull requests")
+      )
+      binding.prsSpinner.adapter = spinnerAdapter
+      binding.prsSpinner.isEnabled = false
+    }
+  }
+
   private suspend fun gotToken(result: Boolean) {
     if (result) {
       binding.loadReposButton.isEnabled = true
-      viewModel.event(EventMainActivity.ShowToast(
-        message = "Authentication successful"
-      ))
+      viewModel.event(
+        EventMainActivity.ShowToast(
+          message = "Authentication successful"
+        )
+      )
     } else {
-      viewModel.event(EventMainActivity.ShowToast(
-        message = "Authentication failed"
-      ))
+      viewModel.event(
+        EventMainActivity.ShowToast(
+          message = "Authentication failed"
+        )
+      )
     }
   }
 
@@ -294,7 +296,6 @@ class MainActivity : AppCompatActivity() {
       viewModel.event(EventMainActivity.GetAuthoriseGithub)
     }
   }
-
 
 
   override fun onResume() {
@@ -317,7 +318,7 @@ class MainActivity : AppCompatActivity() {
     val comment = binding.commentEditText.text.toString()
     if (comment.isNotEmpty()) {
       val currentRepo = binding.repositoriesSpinner.selectedItem as GithubRepoDto
-      val currentPullRequest = binding.prsSpinner.selectedItem as GithubPullRequestDto
+      val currentPullRequest = binding.prsSpinner.selectedItem as GithubPullRequest
       val content = GithubCommentDto(body = comment, id = null)
       token?.let {
         viewModel.onPostComment(

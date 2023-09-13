@@ -5,14 +5,21 @@ import android.util.Log
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import info.sergeikolinichenko.mygithubrepos.models.GithubCommentDto
-import info.sergeikolinichenko.mygithubrepos.models.GithubPullRequestDto
+import info.sergeikolinichenko.mygithubrepos.models.GithubPullRequest
 import info.sergeikolinichenko.mygithubrepos.models.GithubRepoDto
 import info.sergeikolinichenko.mygithubrepos.network.ApiFactory
 import info.sergeikolinichenko.mygithubrepos.usecases.ClearTokenUseCase
 import info.sergeikolinichenko.mygithubrepos.usecases.GetAuthoriseUseCase
+import info.sergeikolinichenko.mygithubrepos.usecases.GetPullRequestsUseCase
 import info.sergeikolinichenko.mygithubrepos.usecases.GetReposUseCase
 import info.sergeikolinichenko.mygithubrepos.usecases.GetTokenUseCase
 import info.sergeikolinichenko.mygithubrepos.utils.EventMainActivity
+import info.sergeikolinichenko.mygithubrepos.utils.EventMainActivity.GetAuthoriseGithub
+import info.sergeikolinichenko.mygithubrepos.utils.EventMainActivity.GetListRepos
+import info.sergeikolinichenko.mygithubrepos.utils.EventMainActivity.GetPullRequests
+import info.sergeikolinichenko.mygithubrepos.utils.EventMainActivity.GetToken
+import info.sergeikolinichenko.mygithubrepos.utils.EventMainActivity.Init
+import info.sergeikolinichenko.mygithubrepos.utils.EventMainActivity.ShowToast
 import info.sergeikolinichenko.mygithubrepos.utils.StateMainActivity
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.CompositeDisposable
@@ -29,7 +36,8 @@ class MainViewModel @Inject constructor(
   private val getAuthoriseUseCase: GetAuthoriseUseCase,
   private val getTokenUseCase: GetTokenUseCase,
   private val clearTokenUseCase: ClearTokenUseCase,
-  private val getReposUseCase: GetReposUseCase
+  private val getReposUseCase: GetReposUseCase,
+  private val getPullRequestsUseCase: GetPullRequestsUseCase
 ) : ViewModel() {
 
   private val _state = MutableStateFlow<StateMainActivity>(StateMainActivity.Init)
@@ -37,11 +45,12 @@ class MainViewModel @Inject constructor(
 
   suspend fun event(event: EventMainActivity) {
     when (event) {
-      EventMainActivity.Init -> {}
-      EventMainActivity.GetAuthoriseGithub -> getAuthoriseGithub()
-      EventMainActivity.GetListRepos -> loadRepositories()
-      is EventMainActivity.GetToken -> { getGithubToken(event.uri) }
-      is EventMainActivity.ShowToast -> { _state.emit(StateMainActivity.ShowToast(event.message)) }
+      Init -> {}
+      GetAuthoriseGithub -> getAuthoriseGithub()
+      GetListRepos -> loadRepositories()
+      is GetToken -> { getGithubToken(event.uri) }
+      is ShowToast -> { _state.emit(StateMainActivity.ShowToast(event.message)) }
+      is GetPullRequests -> { loadPullRequests(owner = event.owner, repo = event.repo) }
     }
   }
 
@@ -59,8 +68,6 @@ class MainViewModel @Inject constructor(
 
   val tokenLd = MutableLiveData<String>()
   val errorLd = MutableLiveData<String>()
-  val reposLD = MutableLiveData<List<GithubRepoDto>>()
-  val pullRequestsLD = MutableLiveData<List<GithubPullRequestDto>>()
   val commentsLD = MutableLiveData<List<GithubCommentDto>>()
   val postCommentsLD = MutableLiveData<Unit>()
 
@@ -88,28 +95,28 @@ class MainViewModel @Inject constructor(
 //    )
   }
 
-  fun loadPullRequests(
-    token: String,
-    owner: String?,
-    repo: String?
-  ) {
+  private suspend fun loadPullRequests(owner: String?, repo: String?) {
 
     if (!owner.isNullOrEmpty() && !repo.isNullOrEmpty()) {
-      ApiFactory.getAuthorizedApi(token = token)
-        .getPullRequests(owner = owner, repo = repo)
-        .subscribeOn(Schedulers.io())
-        .observeOn(AndroidSchedulers.mainThread())
-        .subscribeWith(object : DisposableSingleObserver<List<GithubPullRequestDto>>() {
-          override fun onSuccess(t: List<GithubPullRequestDto>) {
-            pullRequestsLD.value = t
-          }
 
-          override fun onError(e: Throwable) {
-            e.printStackTrace()
-            errorLd.value = "Cannot load pull requests"
-          }
+      val list = getPullRequestsUseCase.invoke(owner = owner, repo = repo)
+      _state.emit(StateMainActivity.GotListPullRequests(list = list))
 
-        })
+//      ApiFactory.getAuthorizedApi(token = token)
+//        .getPullRequests(owner = owner, repo = repo)
+//        .subscribeOn(Schedulers.io())
+//        .observeOn(AndroidSchedulers.mainThread())
+//        .subscribeWith(object : DisposableSingleObserver<List<GithubPullRequest>>() {
+//          override fun onSuccess(t: List<GithubPullRequest>) {
+//            pullRequestsLD.value = t
+//          }
+//
+//          override fun onError(e: Throwable) {
+//            e.printStackTrace()
+//            errorLd.value = "Cannot load pull requests"
+//          }
+//
+//        })
     }
   }
 

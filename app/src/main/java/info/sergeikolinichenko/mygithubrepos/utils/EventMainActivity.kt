@@ -8,4 +8,5 @@ sealed class EventMainActivity {
   data object GetListRepos: EventMainActivity()
   class GetToken(val uri: String): EventMainActivity()
   class ShowToast(val message: String): EventMainActivity()
+  class GetPullRequests(val owner: String?, val repo: String?): EventMainActivity()
 }

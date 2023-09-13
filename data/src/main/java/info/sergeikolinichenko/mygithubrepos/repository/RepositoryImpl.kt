@@ -3,6 +3,8 @@ package info.sergeikolinichenko.mygithubrepos.repository
 import android.content.Intent
 import android.content.SharedPreferences
 import android.net.Uri
+import info.sergeikolinichenko.mygithubrepos.models.GithubPullRequest
+import info.sergeikolinichenko.mygithubrepos.models.GithubPullRequestDto
 import info.sergeikolinichenko.mygithubrepos.models.GithubRepo
 import info.sergeikolinichenko.mygithubrepos.models.GithubRepoDto
 import info.sergeikolinichenko.mygithubrepos.network.ApiFactory
@@ -49,9 +51,26 @@ class RepositoryImpl @Inject constructor(
     val token = preferences.getString(KEY_TOKEN, "")
     val list = mutableListOf<GithubRepoDto>()
     if (!token.isNullOrEmpty()) {
-      list.addAll(ApiFactory.getAuthorizedApi(token = token).getAllRepos())
+      list.addAll(
+        ApiFactory.getAuthorizedApi(token = token).getAllRepos()
+      )
     }
     return list.map { mapper.mapDtoToRepo(it) }
+  }
+
+  override suspend fun getPullRequests(
+    owner: String,
+    repo: String
+  ): List<GithubPullRequest> {
+    val token = preferences.getString(KEY_TOKEN, "")
+    val list = mutableListOf<GithubPullRequestDto>()
+    if (!token.isNullOrEmpty()) {
+      list.addAll(
+        ApiFactory.getAuthorizedApi(token = token)
+          .getPullRequests(owner = owner, repo = repo)
+      )
+    }
+    return list.map { mapper.mapDtoToPullRequest(it) }
   }
 
   companion object {

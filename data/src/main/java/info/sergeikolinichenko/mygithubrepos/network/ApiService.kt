@@ -30,10 +30,10 @@ interface ApiService {
   suspend fun getAllRepos(): List<GithubRepoDto> //Single<List<GithubRepoDto>>
 
   @GET("/repos/{owner}/{repo}/pulls")
-  fun getPullRequests(
+  suspend fun getPullRequests(
     @Path("owner") owner: String,
     @Path("repo") repo: String
-  ): Single<List<GithubPullRequestDto>>
+  ): List<GithubPullRequestDto> // Single<List<GithubPullRequest>>
 
   @GET("/repos/{owner}/{repo}/issues/{issue_number}/comments")
   fun getComments(

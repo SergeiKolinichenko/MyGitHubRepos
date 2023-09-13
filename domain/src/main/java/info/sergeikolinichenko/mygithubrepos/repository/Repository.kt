@@ -1,5 +1,6 @@
 package info.sergeikolinichenko.mygithubrepos.repository
 
+import info.sergeikolinichenko.mygithubrepos.models.GithubPullRequest
 import info.sergeikolinichenko.mygithubrepos.models.GithubRepo
 
 /** Created by Sergei Kolinichenko on 12.09.2023 at 17:18 (GMT+3) **/
@@ -9,4 +10,8 @@ interface Repository {
   suspend fun getToken(uri: String): Boolean
   fun clearToken()
   suspend fun getGithubRepos(): List<GithubRepo>
+  suspend fun getPullRequests(
+    owner: String,
+    repo: String
+  ): List<GithubPullRequest>
 }
