@@ -1,7 +1,5 @@
 package info.sergeikolinichenko.mygithubrepos.screens.main
 
-import android.content.Intent
-import android.net.Uri
 import android.os.Bundle
 import android.view.View
 import android.widget.AdapterView
@@ -9,13 +7,19 @@ import android.widget.ArrayAdapter
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModelProvider
-import info.sergeikolinichenko.mygithubrepos.R
+import androidx.lifecycle.lifecycleScope
 import info.sergeikolinichenko.mygithubrepos.databinding.ActivityMainBinding
 import info.sergeikolinichenko.mygithubrepos.models.GithubComment
 import info.sergeikolinichenko.mygithubrepos.models.GithubPullRequest
 import info.sergeikolinichenko.mygithubrepos.models.GithubRepo
 import info.sergeikolinichenko.mygithubrepos.utils.App
+import info.sergeikolinichenko.mygithubrepos.utils.EventMainActivity
+import info.sergeikolinichenko.mygithubrepos.utils.StateMainActivity.GetAuthoriseGithub
+import info.sergeikolinichenko.mygithubrepos.utils.StateMainActivity.GotToken
+import info.sergeikolinichenko.mygithubrepos.utils.StateMainActivity.Init
+import info.sergeikolinichenko.mygithubrepos.utils.StateMainActivity.ShowToast
 import info.sergeikolinichenko.mygithubrepos.utils.ViewModelsFactory
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 class MainActivity : AppCompatActivity() {
@@ -41,28 +45,8 @@ class MainActivity : AppCompatActivity() {
     super.onCreate(savedInstanceState)
     setContentView(binding.root)
 
-    initialReposSpinner()
-    initialPrsSpinner()
-    initialCommentsSpinner()
-
     observeViewModel()
-  }
-
-  override fun onResume() {
-    super.onResume()
-
-    val url = intent.data
-    val callbackUrl = getString(R.string.callbackUrl)
-    if (url != null && url.toString().startsWith(callbackUrl)) {
-      val code = url.getQueryParameter("code")
-
-      code?.let {
-        val clientId = getString(R.string.clientId)
-        val clientSecret = getString(R.string.clientSecret)
-        viewModel.getToken(clientID = clientId, clientSecret = clientSecret, code = code)
-      }
-
-    }
+    observeStates()
   }
 
   private fun initialReposSpinner() {
@@ -91,8 +75,6 @@ class MainActivity : AppCompatActivity() {
               // Load PullRequests
               viewModel.loadPullRequests(token = it, owner = owner, repo = repo)
             }
-
-
           }
         }
       }
@@ -109,7 +91,6 @@ class MainActivity : AppCompatActivity() {
       object : AdapterView.OnItemSelectedListener {
         override fun onNothingSelected(p0: AdapterView<*>?) {
         }
-
         override fun onItemSelected(
           parent: AdapterView<*>?,
           view: View?,
@@ -254,26 +235,58 @@ class MainActivity : AppCompatActivity() {
     Toast.makeText(this@MainActivity, message, Toast.LENGTH_SHORT).show()
   }
 
-  fun onAuthenticate() {
-
-    val oauthUrl = getString(R.string.oauthUrl)
-    val clientId = getString(R.string.clientId)
-    val callbackUrl = getString(R.string.callbackUrl)
-
-    val intent = Intent(
-      Intent.ACTION_VIEW,
-      Uri.parse("$oauthUrl?client_id=$clientId&scope=repo&redirect_uri=$callbackUrl")
-    )
-    startActivity(intent)
+  private fun observeStates() {
+    lifecycleScope.launch {
+      viewModel.state.collect { state ->
+        when (state) {
+          Init -> {
+            initialReposSpinner()
+            initialPrsSpinner()
+            initialCommentsSpinner()
+          }
+          is GetAuthoriseGithub -> { startActivity(state.intent) }
+          is GotToken -> { gotToken(result = state.result) }
+          is ShowToast -> {showToast(message = state.message)}
+        }
+      }
+    }
   }
 
-  fun onLoadRepos() {
+  private suspend fun gotToken(result: Boolean) {
+    if (result) {
+      binding.loadReposButton.isEnabled = true
+    } else {
+      viewModel.event(EventMainActivity.ShowToast(
+        message = "Don't load GitHub token"
+      ))
+    }
+  }
+
+  fun onAuthenticate(view: View) {
+    lifecycleScope.launch {
+      viewModel.event(EventMainActivity.GetAuthoriseGithub)
+    }
+  }
+
+
+
+  override fun onResume() {
+    super.onResume()
+    val uri = intent.data
+    if (uri != null) {
+      lifecycleScope.launch {
+        viewModel.event(EventMainActivity.GetToken(uri = uri.toString()))
+      }
+    }
+  }
+
+  fun onLoadRepos(view: View) {
     token?.let {
       viewModel.loadRepositories(it)
     }
   }
 
-  fun onPostComment() {
+  fun onPostComment(view: View) {
     val comment = binding.commentEditText.text.toString()
     if (comment.isNotEmpty()) {
       val currentRepo = binding.repositoriesSpinner.selectedItem as GithubRepo

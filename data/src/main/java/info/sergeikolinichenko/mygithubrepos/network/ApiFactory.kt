@@ -13,9 +13,9 @@ object ApiFactory {
 
   fun getUnauthorizedApi(): ApiService =
     Retrofit.Builder()
-      .baseUrl(BASE_URL)
       .addConverterFactory(GsonConverterFactory.create())
-      .addCallAdapterFactory(RxJava2CallAdapterFactory.create())
+      .baseUrl(BASE_URL)
+//      .addCallAdapterFactory(RxJava2CallAdapterFactory.create())
       .build()
       .create(ApiService::class.java)
 

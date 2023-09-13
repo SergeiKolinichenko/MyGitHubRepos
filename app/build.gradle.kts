@@ -38,6 +38,7 @@ android {
 
 val retrofitVersion = "2.9.0"
 val daggerVersion = "2.48"
+val lifecycle_version = "2.6.1"
 
 dependencies {
   implementation(project(":data"))
@@ -51,6 +52,9 @@ dependencies {
   androidTestImplementation("androidx.test.ext:junit:1.1.5")
   androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
 
+  implementation ("androidx.lifecycle:lifecycle-viewmodel-ktx:$lifecycle_version")
+  implementation ("androidx.lifecycle:lifecycle-livedata-ktx:$lifecycle_version")
+
   // Retrofit2
   implementation ("com.squareup.retrofit2:retrofit:$retrofitVersion")
   implementation ("com.squareup.retrofit2:converter-gson:$retrofitVersion")
@@ -61,7 +65,6 @@ dependencies {
   kapt ("com.google.dagger:dagger-compiler:$daggerVersion")
 
   // RxJava
-//  implementation ("io.reactivex.rxjava2:rxkotlin:2.4.0")
   implementation ("io.reactivex.rxjava2:rxandroid:2.1.1")
 
 }

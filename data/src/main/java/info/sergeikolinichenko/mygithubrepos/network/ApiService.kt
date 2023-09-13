@@ -20,11 +20,11 @@ interface ApiService {
   @Headers("Accept: application/json")
   @FormUrlEncoded
   @POST("https://github.com/login/oauth/access_token")
-  fun getAuthToken(
+  suspend fun getAuthToken(
     @Field("client_id") clientId: String,
     @Field("client_secret") clientSecret: String,
     @Field("code") code: String
-  ): Single<GithubToken>
+  ): GithubToken //Single<GithubToken>
 
   @GET("user/repos")
   fun getAllRepos(): Single<List<GithubRepo>>

@@ -9,7 +9,8 @@ import info.sergeikolinichenko.mygithubrepos.screens.main.MainActivity
 @ApplicationScope
 @Component(
   modules = [
-    ViewModelsModule::class
+    ViewModelsModule::class,
+    DataModule::class
   ]
 )
 interface ApplicationComponent {
