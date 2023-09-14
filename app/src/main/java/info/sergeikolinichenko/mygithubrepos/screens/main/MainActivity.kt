@@ -9,12 +9,12 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import info.sergeikolinichenko.mygithubrepos.databinding.ActivityMainBinding
-import info.sergeikolinichenko.mygithubrepos.models.GithubCommentDto
+import info.sergeikolinichenko.mygithubrepos.models.GithubComment
 import info.sergeikolinichenko.mygithubrepos.models.GithubPullRequest
 import info.sergeikolinichenko.mygithubrepos.models.GithubRepo
-import info.sergeikolinichenko.mygithubrepos.models.GithubRepoDto
 import info.sergeikolinichenko.mygithubrepos.utils.App
 import info.sergeikolinichenko.mygithubrepos.utils.EventMainActivity
+import info.sergeikolinichenko.mygithubrepos.utils.StateMainActivity
 import info.sergeikolinichenko.mygithubrepos.utils.StateMainActivity.GetAuthoriseGithub
 import info.sergeikolinichenko.mygithubrepos.utils.StateMainActivity.GotListPullRequests
 import info.sergeikolinichenko.mygithubrepos.utils.StateMainActivity.GotListRepos
@@ -37,8 +37,6 @@ class MainActivity : AppCompatActivity() {
     ViewModelProvider(this, viewModelFactory)[MainViewModel::class.java]
   }
 
-  var token: String? = null
-
   private val component by lazy {
     (application as App).component
   }
@@ -47,9 +45,49 @@ class MainActivity : AppCompatActivity() {
     component.inject(this)
     super.onCreate(savedInstanceState)
     setContentView(binding.root)
-
-    observeViewModel()
     observeStates()
+  }
+
+  private fun observeStates() {
+    lifecycleScope.launch {
+      viewModel.state.collect { state ->
+        when (state) {
+          Init -> {
+            initialReposSpinner()
+            initialPrsSpinner()
+            initialCommentsSpinner()
+          }
+
+          is GetAuthoriseGithub -> {
+            startActivity(state.intent)
+          }
+
+          is GotToken -> {
+            gotToken(result = state.result)
+          }
+
+          is ShowToast -> {
+            showToast(message = state.message)
+          }
+
+          is GotListRepos -> {
+            gotListRepos(list = state.list)
+          }
+
+          is GotListPullRequests -> {
+            gotListPullRequests(list = state.list)
+          }
+
+          is StateMainActivity.GotListComments -> {
+            gotListComments(list = state.list)
+          }
+
+          StateMainActivity.PostCommentSucceeds -> {
+            getComments()
+          }
+        }
+      }
+    }
   }
 
   private fun initialReposSpinner() {
@@ -112,12 +150,13 @@ class MainActivity : AppCompatActivity() {
             val repo = binding.repositoriesSpinner.selectedItem as GithubRepo
             val number = currentPR.number
             // Load comments
-            token?.let {
-              viewModel.loadCommentsPullRequest(
-                token = it,
-                owner = owner,
-                repo = repo.name,
-                number
+            lifecycleScope.launch {
+              viewModel.event(
+                EventMainActivity.GetComments(
+                  owner = owner,
+                  repo = repo.name,
+                  pullNumber = number
+                )
               )
             }
           }
@@ -134,101 +173,45 @@ class MainActivity : AppCompatActivity() {
     )
   }
 
-  private fun observeViewModel() {
-
-    viewModel.tokenLd.observe(this) { token ->
-      if (token.isNotEmpty()) {
-        this.token = token
-        binding.loadReposButton.isEnabled = true
-        showToast("Authentication successful")
-      } else {
-        showToast("Authentication failed")
-      }
-    }
-
-    viewModel.commentsLD.observe(this) { comments ->
-      if (!comments.isNullOrEmpty()) {
-        binding.commentsSpinner.visibility = View.VISIBLE
-        val spinnerAdapter = ArrayAdapter(
-          this@MainActivity,
-          android.R.layout.simple_spinner_dropdown_item,
-          comments
-        )
-        binding.commentsSpinner.adapter = spinnerAdapter
-        binding.commentsSpinner.isEnabled = true
-        binding.commentEditText.isEnabled = true
-        binding.postCommentButton.isEnabled = true
-
-      } else {
-        val spinnerAdapter = ArrayAdapter(
-          this@MainActivity,
-          android.R.layout.simple_spinner_dropdown_item,
-          arrayListOf("User has not comments")
-        )
-        binding.commentsSpinner.adapter = spinnerAdapter
-        binding.commentsSpinner.isEnabled = false
-      }
-    }
-
-    viewModel.postCommentsLD.observe(this) {
-      binding.commentEditText.setText("")
-      showToast("Comment created")
-
-      val currentPR = binding.prsSpinner.selectedItem as GithubPullRequest
-      val owner = currentPR.user?.login
-      val repo = binding.repositoriesSpinner.selectedItem as GithubRepo
-      val number = currentPR.number
-      // Load comments
-      token?.let {
-        viewModel.loadCommentsPullRequest(
-          token = it,
-          owner = owner,
-          repo = repo.name,
-          number
-        )
-      }
-    }
-
-    viewModel.errorLd.observe(this) { message ->
-      showToast(message = message)
-    }
+  private suspend fun getComments() {
+    val currentPR = binding.prsSpinner.selectedItem as GithubPullRequest
+    val owner = currentPR.user?.login
+    val repo = binding.repositoriesSpinner.selectedItem as GithubRepo
+    val number = currentPR.number
+    viewModel.event(
+      EventMainActivity.GetComments(
+        owner = owner,
+        repo = repo.name,
+        pullNumber = number
+      )
+    )
   }
 
   private fun showToast(message: String) {
     Toast.makeText(this@MainActivity, message, Toast.LENGTH_SHORT).show()
   }
 
-  private fun observeStates() {
-    lifecycleScope.launch {
-      viewModel.state.collect { state ->
-        when (state) {
-          Init -> {
-            initialReposSpinner()
-            initialPrsSpinner()
-            initialCommentsSpinner()
-          }
+  private fun gotListComments(list: List<GithubComment>) {
+    if (list.isNotEmpty()) {
 
-          is GetAuthoriseGithub -> {
-            startActivity(state.intent)
-          }
+      val spinnerAdapter = ArrayAdapter(
+        this@MainActivity,
+        android.R.layout.simple_spinner_dropdown_item,
+        list
+      )
+      binding.commentsSpinner.adapter = spinnerAdapter
+      binding.commentsSpinner.isEnabled = true
+      binding.commentEditText.isEnabled = true
+      binding.postCommentButton.isEnabled = true
 
-          is GotToken -> {
-            gotToken(result = state.result)
-          }
-
-          is ShowToast -> {
-            showToast(message = state.message)
-          }
-
-          is GotListRepos -> {
-            gotListRepos(list = state.list)
-          }
-
-          is GotListPullRequests -> {
-            gotListPullRequests(list = state.list)
-          }
-        }
-      }
+    } else {
+      val spinnerAdapter = ArrayAdapter(
+        this@MainActivity,
+        android.R.layout.simple_spinner_dropdown_item,
+        arrayListOf("User has not comments")
+      )
+      binding.commentsSpinner.adapter = spinnerAdapter
+      binding.commentsSpinner.isEnabled = false
     }
   }
 
@@ -317,18 +300,24 @@ class MainActivity : AppCompatActivity() {
   fun onPostComment(view: View) {
     val comment = binding.commentEditText.text.toString()
     if (comment.isNotEmpty()) {
-      val currentRepo = binding.repositoriesSpinner.selectedItem as GithubRepoDto
+      val currentRepo = binding.repositoriesSpinner.selectedItem as GithubRepo
       val currentPullRequest = binding.prsSpinner.selectedItem as GithubPullRequest
-      val content = GithubCommentDto(body = comment, id = null)
-      token?.let {
-        viewModel.onPostComment(
-          token = it,
-          repo = currentRepo,
-          pullNumber = currentPullRequest.number,
-          content = content
+      val content = GithubComment(body = comment, id = null)
+
+      lifecycleScope.launch {
+        viewModel.event(
+          EventMainActivity.PostComment(
+            repo = currentRepo,
+            pullNumber = currentPullRequest.number,
+            content = content
+          )
         )
       }
-    } else showToast("Pleas enter a comment")
+    } else {
+      lifecycleScope.launch {
+        viewModel.event(EventMainActivity.ShowToast(message = "Pleas enter a comment"))
+      }
+    }
   }
 
 }

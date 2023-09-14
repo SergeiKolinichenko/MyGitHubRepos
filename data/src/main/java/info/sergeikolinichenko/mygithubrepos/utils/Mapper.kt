@@ -1,5 +1,7 @@
 package info.sergeikolinichenko.mygithubrepos.utils
 
+import info.sergeikolinichenko.mygithubrepos.models.GithubComment
+import info.sergeikolinichenko.mygithubrepos.models.GithubCommentDto
 import info.sergeikolinichenko.mygithubrepos.models.GithubPullRequest
 import info.sergeikolinichenko.mygithubrepos.models.GithubPullRequestDto
 import info.sergeikolinichenko.mygithubrepos.models.GithubRepo
@@ -30,5 +32,15 @@ class Mapper @Inject constructor() {
       id = dto.owner.id,
       login = dto.owner.login
     )
+  )
+
+  fun mapDtoToComment(dto: GithubCommentDto) = GithubComment (
+    body = dto.body,
+    id = dto.id
+  )
+
+  fun mapCommentToDto(entity: GithubComment) = GithubCommentDto(
+    body = entity.body,
+    id = entity.id
   )
 }

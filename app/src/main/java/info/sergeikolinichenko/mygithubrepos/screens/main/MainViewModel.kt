@@ -1,33 +1,28 @@
 package info.sergeikolinichenko.mygithubrepos.screens.main
 
 import android.content.Intent
-import android.util.Log
-import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
-import info.sergeikolinichenko.mygithubrepos.models.GithubCommentDto
-import info.sergeikolinichenko.mygithubrepos.models.GithubPullRequest
-import info.sergeikolinichenko.mygithubrepos.models.GithubRepoDto
-import info.sergeikolinichenko.mygithubrepos.network.ApiFactory
+import info.sergeikolinichenko.mygithubrepos.models.GithubComment
+import info.sergeikolinichenko.mygithubrepos.models.GithubRepo
 import info.sergeikolinichenko.mygithubrepos.usecases.ClearTokenUseCase
 import info.sergeikolinichenko.mygithubrepos.usecases.GetAuthoriseUseCase
+import info.sergeikolinichenko.mygithubrepos.usecases.GetCommentsUseCase
 import info.sergeikolinichenko.mygithubrepos.usecases.GetPullRequestsUseCase
 import info.sergeikolinichenko.mygithubrepos.usecases.GetReposUseCase
 import info.sergeikolinichenko.mygithubrepos.usecases.GetTokenUseCase
+import info.sergeikolinichenko.mygithubrepos.usecases.PostCommentUseCase
 import info.sergeikolinichenko.mygithubrepos.utils.EventMainActivity
 import info.sergeikolinichenko.mygithubrepos.utils.EventMainActivity.GetAuthoriseGithub
+import info.sergeikolinichenko.mygithubrepos.utils.EventMainActivity.GetComments
 import info.sergeikolinichenko.mygithubrepos.utils.EventMainActivity.GetListRepos
 import info.sergeikolinichenko.mygithubrepos.utils.EventMainActivity.GetPullRequests
 import info.sergeikolinichenko.mygithubrepos.utils.EventMainActivity.GetToken
 import info.sergeikolinichenko.mygithubrepos.utils.EventMainActivity.Init
+import info.sergeikolinichenko.mygithubrepos.utils.EventMainActivity.PostComment
 import info.sergeikolinichenko.mygithubrepos.utils.EventMainActivity.ShowToast
 import info.sergeikolinichenko.mygithubrepos.utils.StateMainActivity
-import io.reactivex.android.schedulers.AndroidSchedulers
-import io.reactivex.disposables.CompositeDisposable
-import io.reactivex.observers.DisposableSingleObserver
-import io.reactivex.schedulers.Schedulers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import okhttp3.ResponseBody
 import javax.inject.Inject
 
 /** Created by Sergei Kolinichenko on 06.09.2023 at 20:21 (GMT+3) **/
@@ -37,7 +32,9 @@ class MainViewModel @Inject constructor(
   private val getTokenUseCase: GetTokenUseCase,
   private val clearTokenUseCase: ClearTokenUseCase,
   private val getReposUseCase: GetReposUseCase,
-  private val getPullRequestsUseCase: GetPullRequestsUseCase
+  private val getPullRequestsUseCase: GetPullRequestsUseCase,
+  private val getCommentsUseCase: GetCommentsUseCase,
+  private val postCommentUseCase: PostCommentUseCase
 ) : ViewModel() {
 
   private val _state = MutableStateFlow<StateMainActivity>(StateMainActivity.Init)
@@ -48,9 +45,33 @@ class MainViewModel @Inject constructor(
       Init -> {}
       GetAuthoriseGithub -> getAuthoriseGithub()
       GetListRepos -> loadRepositories()
-      is GetToken -> { getGithubToken(event.uri) }
-      is ShowToast -> { _state.emit(StateMainActivity.ShowToast(event.message)) }
-      is GetPullRequests -> { loadPullRequests(owner = event.owner, repo = event.repo) }
+      is GetToken -> {
+        getGithubToken(event.uri)
+      }
+
+      is ShowToast -> {
+        _state.emit(StateMainActivity.ShowToast(event.message))
+      }
+
+      is GetPullRequests -> {
+        loadPullRequests(owner = event.owner, repo = event.repo)
+      }
+
+      is GetComments -> {
+        loadCommentsPullRequest(
+          owner = event.owner,
+          repo = event.repo,
+          pullNumber = event.pullNumber
+        )
+      }
+
+      is PostComment -> {
+        onPostComment(
+          repo = event.repo,
+          pullNumber = event.pullNumber,
+          content = event.content
+        )
+      }
     }
   }
 
@@ -64,35 +85,9 @@ class MainViewModel @Inject constructor(
     _state.emit(StateMainActivity.GotToken(result = result))
   }
 
-  private val compositeDisposable = CompositeDisposable()
-
-  val tokenLd = MutableLiveData<String>()
-  val errorLd = MutableLiveData<String>()
-  val commentsLD = MutableLiveData<List<GithubCommentDto>>()
-  val postCommentsLD = MutableLiveData<Unit>()
-
   private suspend fun loadRepositories() {
-
     val list = getReposUseCase.invoke()
-    Log.d("MyLog", "list $list")
     _state.emit(StateMainActivity.GotListRepos(list = list))
-
-//    compositeDisposable.add(
-//      ApiFactory.getAuthorizedApi(token = token).getAllRepos()
-//        .subscribeOn(Schedulers.io())
-//        .observeOn(AndroidSchedulers.mainThread())
-//        .subscribeWith(object : DisposableSingleObserver<List<GithubRepoDto>>() {
-//          override fun onSuccess(t: List<GithubRepoDto>) {
-//            reposLD.value = t
-//          }
-//
-//          override fun onError(e: Throwable) {
-//            e.printStackTrace()
-//            errorLd.value = "Cannot load repositories"
-//          }
-//
-//        })
-//    )
   }
 
   private suspend fun loadPullRequests(owner: String?, repo: String?) {
@@ -101,89 +96,48 @@ class MainViewModel @Inject constructor(
 
       val list = getPullRequestsUseCase.invoke(owner = owner, repo = repo)
       _state.emit(StateMainActivity.GotListPullRequests(list = list))
-
-//      ApiFactory.getAuthorizedApi(token = token)
-//        .getPullRequests(owner = owner, repo = repo)
-//        .subscribeOn(Schedulers.io())
-//        .observeOn(AndroidSchedulers.mainThread())
-//        .subscribeWith(object : DisposableSingleObserver<List<GithubPullRequest>>() {
-//          override fun onSuccess(t: List<GithubPullRequest>) {
-//            pullRequestsLD.value = t
-//          }
-//
-//          override fun onError(e: Throwable) {
-//            e.printStackTrace()
-//            errorLd.value = "Cannot load pull requests"
-//          }
-//
-//        })
     }
   }
 
-  fun loadCommentsPullRequest(
-    token: String,
+  private suspend fun loadCommentsPullRequest(
     owner: String?,
     repo: String?,
     pullNumber: String?
   ) {
-
     if (!owner.isNullOrEmpty() && !repo.isNullOrEmpty() && !pullNumber.isNullOrEmpty()) {
-      ApiFactory.getAuthorizedApi(token = token)
-        .getComments(owner = owner, repo = repo, pullNumber = pullNumber)
-        .subscribeOn(Schedulers.io())
-        .observeOn(AndroidSchedulers.mainThread())
-        .subscribeWith(object : DisposableSingleObserver<List<GithubCommentDto>>() {
-          override fun onSuccess(t: List<GithubCommentDto>) {
-            commentsLD.value = t
-          }
-
-          override fun onError(e: Throwable) {
-            e.printStackTrace()
-            errorLd.value = "Cannot load comments on pull request"
-          }
-
-        })
+      val list = getCommentsUseCase.invoke(
+        ownerName = owner,
+        repoName = repo,
+        numberReq = pullNumber
+      )
+      _state.emit(StateMainActivity.GotListComments(list = list))
     }
   }
 
-  fun onPostComment(
-    token: String,
-    repo: GithubRepoDto,
+  private suspend fun onPostComment(
+    repo: GithubRepo,
     pullNumber: String?,
-    content: GithubCommentDto
+    content: GithubComment
   ) {
     if (
       !repo.name.isNullOrEmpty() &&
       repo.owner.login.isNotEmpty() &&
       !pullNumber.isNullOrEmpty()
     ) {
-      compositeDisposable.add(
-        ApiFactory.getAuthorizedApi(token).postComment(
-          owner = repo.owner.login,
-          repo = repo.name!!,
-          pullNumber = pullNumber,
-          comment = content
-        )
-          .subscribeOn(Schedulers.io())
-          .observeOn(AndroidSchedulers.mainThread())
-          .subscribeWith(object : DisposableSingleObserver<ResponseBody>(){
-            override fun onSuccess(t: ResponseBody) {
-              postCommentsLD.value = Unit
-            }
-
-            override fun onError(e: Throwable) {
-              e.printStackTrace()
-              errorLd.value = "Cannot create comment"
-            }
-
-          })
+      val result = postCommentUseCase.invoke(
+        repo = repo,
+        pullNumber = pullNumber,
+        content = content
       )
+      if (result != null) {
+        _state.emit(StateMainActivity.ShowToast(message = "Comment created"))
+        _state.emit(StateMainActivity.PostCommentSucceeds)
+      }
     }
   }
 
   override fun onCleared() {
     super.onCleared()
     clearTokenUseCase.invoke()
-    compositeDisposable.clear()
   }
 }

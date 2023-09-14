@@ -4,7 +4,6 @@ import info.sergeikolinichenko.mygithubrepos.models.GithubCommentDto
 import info.sergeikolinichenko.mygithubrepos.models.GithubPullRequestDto
 import info.sergeikolinichenko.mygithubrepos.models.GithubRepoDto
 import info.sergeikolinichenko.mygithubrepos.models.GithubTokenDto
-import io.reactivex.Single
 import okhttp3.ResponseBody
 import retrofit2.http.Body
 import retrofit2.http.Field
@@ -36,17 +35,17 @@ interface ApiService {
   ): List<GithubPullRequestDto> // Single<List<GithubPullRequest>>
 
   @GET("/repos/{owner}/{repo}/issues/{issue_number}/comments")
-  fun getComments(
+  suspend fun getComments(
     @Path("owner") owner: String,
     @Path("repo") repo: String,
     @Path("issue_number") pullNumber: String
-  ): Single<List<GithubCommentDto>>
+  ): List<GithubCommentDto> //Single<List<GithubCommentDto>>
 
   @POST("/repos/{owner}/{repo}/issues/{issue_number}/comments")
-  fun postComment(
+  suspend fun postComment(
     @Path("owner") owner: String,
     @Path("repo") repo: String,
     @Path("issue_number") pullNumber: String,
     @Body comment: GithubCommentDto
-  ): Single<ResponseBody>
+  ): ResponseBody //Single<ResponseBody>
 }
