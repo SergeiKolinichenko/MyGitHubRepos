@@ -117,10 +117,10 @@ class RepositoryImpl @Inject constructor(
   }
 
   companion object {
-    private const val OAUTH_URL = "https://github.com/login/oauth/authorize"
-    private const val CLIENT_ID = "4b65325780700c2ccd2a"
-    private const val CALLBACK_URL = "mygithub://callback"
-    private const val CLIENT_SECRET = "6e97c9eeecf73c6fbf7d1f7bcdf7917e8504dd4d"
+    private const val OAUTH_URL = "This is where you need to insert your Oauth Url"
+    private const val CLIENT_ID = "This is where you need to insert your GitGub Client ID"
+    private const val CALLBACK_URL = "This is where you need to insert your Callback URL"
+    private const val CLIENT_SECRET = "This is where you need to insert your Client Secret"
     private const val KEY_TOKEN = "key_token"
     private const val KEY_CODE = "code"
   }
